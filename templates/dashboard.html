@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Dashboard | Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr);
+            align-items: stretch;
+            gap: 18px;
+        }
+
+        .chart-area {
+            display: grid;
+            min-height: 300px;
+            padding: 22px;
+            place-items: center;
+        }
+
+        .chart-area canvas {
+            max-width: 360px;
+            max-height: 300px;
+        }
+
+        .dashboard-empty {
+            display: grid;
+            min-height: 250px;
+            padding: 24px;
+            place-items: center;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .share-track {
+            width: 90px;
+            height: 7px;
+            overflow: hidden;
+            margin-right: 9px;
+            border-radius: 999px;
+            background: #edf0f5;
+            vertical-align: middle;
+        }
+
+        .share-track span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #7d89e7, var(--accent));
+        }
+
+        @media (max-width: 850px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="app-nav" aria-label="Main navigation">
+        <a class="app-brand" href="/">
+            <span class="app-brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 18.5V12m5 6.5V5.5m5 13V9m5 9.5V3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </span>
+            Expense Tracker
+        </a>
+        <div class="app-links">
+            <a href="/">Home</a>
+            <a href="{{ url_for('dashboard') }}" aria-current="page">Dashboard</a>
+            <a href="{{ url_for('transactions') }}">Transactions</a>
+            <a href="{{ url_for('budgets') }}">Budgets</a>
+            <a href="{{ url_for('manage_family') }}">Family</a>
+            <a class="logout-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <header class="page-intro">
+            <div>
+                <p class="eyebrow">At a glance</p>
+                <h1>Your money dashboard</h1>
+                <p>A clear snapshot of income, spending, and the categories shaping your month.</p>
+            </div>
+            <a class="button" href="{{ url_for('transactions') }}">＋ Add transaction</a>
+        </header>
+
+        <section class="summary-cards" aria-label="Financial summary">
+            <article class="card">
+                <h5>Total income</h5>
+                <p style="color: #18866b;">₹{{ '%.2f'|format(income) }}</p>
+            </article>
+            <article class="card">
+                <h5>Total expenses</h5>
+                <p style="color: #cc4b55;">₹{{ '%.2f'|format(expenses) }}</p>
+            </article>
+            <article class="card">
+                <h5>Balance</h5>
+                <p style="color: {{ '#18866b' if balance >= 0 else '#cc4b55' }};">₹{{ '%.2f'|format(balance) }}</p>
+            </article>
+            <article class="card">
+                <h5>Savings</h5>
+                <p>₹{{ '%.2f'|format(savings) }}</p>
+            </article>
+        </section>
+
+        <div class="dashboard-grid">
+            <section class="panel" aria-labelledby="category-chart-title">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="category-chart-title">Spending by category</h2>
+                        <p>See how expenses are distributed.</p>
+                    </div>
+                </div>
+                {% if categories %}
+                <div class="chart-area"><canvas id="categoryChart" aria-label="Expenses by category" role="img"></canvas></div>
+                {% else %}
+                <div class="dashboard-empty">Your category breakdown will appear here once expenses are recorded.</div>
+                {% endif %}
+            </section>
+
+            <section class="panel" aria-labelledby="category-table-title">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="category-table-title">Category details</h2>
+                        <p>How each category contributes to your expenses.</p>
+                    </div>
+                </div>
+                <div class="table-wrap" style="border: 0; border-radius: 0 0 16px 16px;">
+                    <table>
+                        <thead>
+                            <tr><th>Category</th><th>Total spent</th><th>Share</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for c in categories %}
+                            {% set share = c.total / expenses * 100 if expenses else 0 %}
+                            <tr>
+                                <td>{{ c.category }}</td>
+                                <td>₹{{ '%.2f'|format(c.total) }}</td>
+                                <td><span class="share-track" aria-hidden="true"><span style="width: {{ [share, 100]|min }}%;"></span></span>{{ '%.1f'|format(share) }}%</td>
+                            </tr>
+                            {% else %}
+                            <tr><td class="empty-state" colspan="3">No expenses recorded yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+        <p class="app-footer">Your overview, always in focus.</p>
+    </main>
+
+    {% if categories %}
+    <script>
+        const labels = [{% for c in categories %}{{ c.category|tojson }}{{ "," if not loop.last }}{% endfor %}];
+        const values = [{% for c in categories %}{{ c.total }}{{ "," if not loop.last }}{% endfor %}];
+        const colors = ['#4658d8', '#35a984', '#f0b64d', '#df6870', '#8d72d9',
+                        '#50a8cc', '#ec8c55', '#7abf8d', '#c879a6', '#8b98ad'];
+
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: labels.map((_, i) => colors[i % colors.length]),
+                    borderColor: '#ffffff',
+                    borderWidth: 4,
+                    hoverOffset: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '66%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 18 }
+                    }
+                }
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

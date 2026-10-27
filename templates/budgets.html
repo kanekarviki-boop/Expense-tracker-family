@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Budgets | Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root {
+            color-scheme: light;
+            --budget-ink: #17243b;
+            --budget-muted: #758198;
+            --budget-line: #e8edf4;
+            --budget-surface: #fff;
+            --budget-canvas: #f5f7fb;
+            --budget-accent: #4658d8;
+            --budget-accent-dark: #3546c2;
+            --budget-green: #18866b;
+            --budget-amber: #b7791f;
+            --budget-red: #cc4b55;
+        }
+
+        body {
+            background:
+                radial-gradient(ellipse at 12% 0%, rgba(87, 108, 230, .09), transparent 34rem),
+                var(--budget-canvas);
+            color: var(--budget-ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        body > .container.budget-shell {
+            width: min(1120px, calc(100% - 40px));
+            max-width: none;
+            margin: 32px auto;
+            padding: 28px;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            box-sizing: border-box;
+        }
+
+        .budget-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 18px;
+            margin-bottom: 32px;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
+            color: var(--budget-ink);
+            font-size: .98rem;
+            font-weight: 800;
+            letter-spacing: -.03em;
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--budget-accent);
+            color: #fff;
+            box-shadow: 0 7px 16px rgba(70, 88, 216, .22);
+        }
+
+        .brand-mark svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 5px;
+        }
+
+        .nav-links a {
+            padding: 9px 13px;
+            border-radius: 9px;
+            color: #647087;
+            font-size: .88rem;
+            font-weight: 650;
+            transition: background .18s ease, color .18s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a[aria-current="page"] {
+            background: #e9edff;
+            color: var(--budget-accent-dark);
+            text-decoration: none;
+        }
+
+        .nav-links .logout-link {
+            color: #9a5360;
+        }
+
+        .brand:focus-visible,
+        .nav-links a:focus-visible,
+        .setup-form button:focus-visible {
+            outline: 3px solid rgba(70, 88, 216, .35);
+            outline-offset: 3px;
+        }
+
+        .page-heading {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--budget-accent);
+            font-size: .74rem;
+            font-weight: 800;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+        }
+
+        .page-heading h1 {
+            margin: 0;
+            color: var(--budget-ink);
+            font-size: clamp(2rem, 4vw, 2.7rem);
+            letter-spacing: -.055em;
+            line-height: 1.08;
+        }
+
+        .page-heading p {
+            max-width: 500px;
+            margin: 10px 0 0;
+            color: var(--budget-muted);
+            font-size: .98rem;
+            line-height: 1.6;
+        }
+
+        .period-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+            padding: 10px 14px;
+            border: 1px solid var(--budget-line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .76);
+            color: #536078;
+            font-size: .82rem;
+            font-weight: 700;
+        }
+
+        .period-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #38a886;
+            box-shadow: 0 0 0 4px rgba(56, 168, 134, .12);
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .overview-card {
+            position: relative;
+            overflow: hidden;
+            min-height: 124px;
+            padding: 21px 22px;
+            border: 1px solid var(--budget-line);
+            border-radius: 16px;
+            background: var(--budget-surface);
+            box-shadow: 0 8px 24px rgba(35, 49, 80, .035);
+        }
+
+        .overview-card::after {
+            position: absolute;
+            top: -34px;
+            right: -24px;
+            width: 108px;
+            height: 108px;
+            border-radius: 50%;
+            background: var(--card-glow, rgba(70, 88, 216, .07));
+            content: "";
+        }
+
+        .overview-card.spent { --card-glow: rgba(56, 168, 134, .1); }
+        .overview-card.remaining { --card-glow: rgba(232, 173, 68, .12); }
+
+        .metric-label {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 13px;
+            color: var(--budget-muted);
+            font-size: .82rem;
+            font-weight: 700;
+        }
+
+        .metric-value {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            color: var(--budget-ink);
+            font-size: clamp(1.45rem, 3vw, 1.85rem);
+            font-weight: 800;
+            letter-spacing: -.045em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-caption {
+            position: relative;
+            z-index: 1;
+            margin: 7px 0 0;
+            color: #8a94a7;
+            font-size: .76rem;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, .8fr);
+            align-items: start;
+            gap: 20px;
+        }
+
+        .panel {
+            min-width: 0;
+            border: 1px solid var(--budget-line);
+            border-radius: 17px;
+            background: var(--budget-surface);
+            box-shadow: 0 10px 30px rgba(35, 49, 80, .045);
+        }
+
+        .panel-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 21px 22px 17px;
+            border-bottom: 1px solid #f0f2f7;
+        }
+
+        .panel-heading h2 {
+            margin: 0;
+            color: var(--budget-ink);
+            font-size: 1.05rem;
+            letter-spacing: -.025em;
+        }
+
+        .panel-heading p {
+            margin: 5px 0 0;
+            color: var(--budget-muted);
+            font-size: .81rem;
+        }
+
+        .budget-count {
+            display: inline-grid;
+            min-width: 30px;
+            height: 30px;
+            padding: 0 8px;
+            place-items: center;
+            border-radius: 9px;
+            background: #eff1ff;
+            color: var(--budget-accent);
+            font-size: .8rem;
+            font-weight: 800;
+        }
+
+        .budget-list {
+            padding: 2px 22px 8px;
+        }
+
+        .budget-item {
+            padding: 19px 0 18px;
+            border-bottom: 1px solid #f0f2f7;
+        }
+
+        .budget-item:last-child {
+            border-bottom: 0;
+        }
+
+        .budget-item-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 13px;
+        }
+
+        .category-name {
+            overflow-wrap: anywhere;
+            margin: 0;
+            color: var(--budget-ink);
+            font-size: .97rem;
+            font-weight: 750;
+        }
+
+        .category-subtitle {
+            margin: 5px 0 0;
+            color: var(--budget-muted);
+            font-size: .77rem;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            flex: 0 0 auto;
+            gap: 6px;
+            padding: 6px 9px;
+            border-radius: 999px;
+            font-size: .7rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .status::before {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            content: "";
+        }
+
+        .status-ok { background: #e8f6f1; color: var(--budget-green); }
+        .status-warn { background: #fff4df; color: var(--budget-amber); }
+        .status-over { background: #fff0f0; color: var(--budget-red); }
+
+        .budget-progress {
+            height: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #edf0f5;
+        }
+
+        .budget-progress-bar {
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #40b491, #18866b);
+            transition: width .3s ease;
+        }
+
+        .budget-progress-bar.warn {
+            background: linear-gradient(90deg, #f3c45f, #d99528);
+        }
+
+        .budget-progress-bar.over {
+            background: linear-gradient(90deg, #ed8588, #cc4b55);
+        }
+
+        .budget-numbers {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 9px;
+            color: var(--budget-muted);
+            font-size: .77rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .budget-numbers strong {
+            color: #45516a;
+            font-weight: 750;
+        }
+
+        .budget-item-bottom {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 8px;
+            color: #8a94a7;
+            font-size: .74rem;
+        }
+
+        .budget-item-bottom .over-amount {
+            color: var(--budget-red);
+            font-weight: 750;
+        }
+
+        .empty-state {
+            padding: 38px 20px 42px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            display: grid;
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 13px;
+            place-items: center;
+            border-radius: 15px;
+            background: #eff1ff;
+            color: var(--budget-accent);
+        }
+
+        .empty-icon svg {
+            width: 23px;
+            height: 23px;
+        }
+
+        .empty-state h3 {
+            margin: 0;
+            color: var(--budget-ink);
+            font-size: .98rem;
+        }
+
+        .empty-state p {
+            max-width: 300px;
+            margin: 7px auto 0;
+            color: var(--budget-muted);
+            font-size: .83rem;
+            line-height: 1.5;
+        }
+
+        .setup-panel {
+            overflow: hidden;
+        }
+
+        .setup-panel .panel-heading {
+            border-bottom: 0;
+        }
+
+        .setup-form {
+            padding: 0 22px 22px;
+        }
+
+        .setup-form div {
+            margin: 0 0 16px;
+        }
+
+        .setup-form label {
+            display: block;
+            margin: 0 0 7px;
+            color: #49556d;
+            font-size: .78rem;
+            font-weight: 750;
+        }
+
+        .setup-form input {
+            width: 100%;
+            min-height: 45px;
+            padding: 11px 12px;
+            border: 1px solid #dfe4ed;
+            border-radius: 10px;
+            background: #fbfcfe;
+            color: var(--budget-ink);
+            font: inherit;
+            font-size: .88rem;
+            box-sizing: border-box;
+            transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+
+        .setup-form input::placeholder {
+            color: #a4adbc;
+        }
+
+        .setup-form input:focus {
+            outline: none;
+            border-color: #7d89e7;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(70, 88, 216, .11);
+        }
+
+        .setup-form button {
+            display: flex;
+            width: 100%;
+            min-height: 46px;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 5px;
+            padding: 11px 16px;
+            border-radius: 10px;
+            background: var(--budget-accent);
+            box-shadow: 0 7px 14px rgba(70, 88, 216, .19);
+            color: #fff;
+            font: inherit;
+            font-size: .88rem;
+            font-weight: 750;
+            transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+        }
+
+        .setup-form button:hover {
+            transform: translateY(-1px);
+            background: var(--budget-accent-dark);
+            box-shadow: 0 9px 18px rgba(70, 88, 216, .25);
+        }
+
+        .setup-form button svg {
+            width: 17px;
+            height: 17px;
+        }
+
+        .form-note {
+            margin: 13px 0 0;
+            color: #8a94a7;
+            font-size: .75rem;
+            line-height: 1.5;
+        }
+
+        .page-footer {
+            margin: 20px 0 0;
+            color: #929bad;
+            font-size: .75rem;
+            text-align: center;
+        }
+
+        @media (max-width: 820px) {
+            body > .container.budget-shell {
+                width: min(100% - 28px, 680px);
+                margin: 18px auto;
+                padding: 16px 0 24px;
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .setup-panel {
+                order: -1;
+            }
+
+            .setup-form {
+                display: grid;
+                grid-template-columns: 1fr 1fr auto;
+                align-items: end;
+                gap: 12px;
+            }
+
+            .setup-form div {
+                margin-bottom: 0;
+            }
+
+            .setup-form button {
+                width: auto;
+                min-width: 145px;
+                margin: 0;
+            }
+
+            .form-note {
+                grid-column: 1 / -1;
+                margin-top: 0;
+            }
+        }
+
+        @media (max-width: 560px) {
+            body > .container.budget-shell {
+                width: calc(100% - 24px);
+                margin: 12px auto;
+            }
+
+            .budget-nav {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 12px;
+                margin-bottom: 26px;
+            }
+
+            .nav-links {
+                width: 100%;
+                justify-content: flex-start;
+                margin: 0 -7px;
+            }
+
+            .nav-links a {
+                padding: 8px 9px;
+                font-size: .78rem;
+            }
+
+            .page-heading {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .overview-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .overview-card {
+                min-height: 0;
+                padding: 16px 18px;
+            }
+
+            .metric-label {
+                margin-bottom: 8px;
+            }
+
+            .metric-caption {
+                margin-top: 4px;
+            }
+
+            .panel-heading {
+                padding: 18px 17px 15px;
+            }
+
+            .budget-list {
+                padding: 2px 17px 5px;
+            }
+
+            .budget-item-top {
+                align-items: flex-start;
+            }
+
+            .setup-form {
+                grid-template-columns: 1fr;
+                gap: 13px;
+                padding: 0 17px 19px;
+            }
+
+            .setup-form button {
+                width: 100%;
+            }
+
+            .form-note {
+                grid-column: auto;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container budget-shell">
+        <nav class="budget-nav" aria-label="Main navigation">
+            <a class="brand" href="/">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M4 18.5V12m5 6.5V5.5m5 13V9m5 9.5V3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <span>Expense Tracker</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('transactions') }}">Transactions</a>
+                <a href="{{ url_for('budgets') }}" aria-current="page">Budgets</a>
+                <a href="{{ url_for('manage_family') }}">Family</a>
+                <a class="logout-link" href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </nav>
+
+        {% set totals = namespace(limit=0, spent=0) %}
+        {% for b in budgets %}
+            {% set item_spent = expense_dict.get(b.category|trim|lower, 0) %}
+            {% set totals.limit = totals.limit + b.amount %}
+            {% set totals.spent = totals.spent + item_spent %}
+        {% endfor %}
+
+        <header class="page-heading">
+            <div>
+                <p class="eyebrow">Plan with confidence</p>
+                <h1>Monthly budgets</h1>
+                <p>Keep your spending on track with a clear view of every category and how much room you have left.</p>
+            </div>
+            <div class="period-pill"><span class="period-dot" aria-hidden="true"></span>Monthly overview</div>
+        </header>
+
+        <section class="overview-grid" aria-label="Budget summary">
+            <article class="overview-card">
+                <p class="metric-label">Total budget</p>
+                <p class="metric-value">₹{{ '%.2f'|format(totals.limit) }}</p>
+                <p class="metric-caption">Across {{ budgets|length }} {{ 'category' if budgets|length == 1 else 'categories' }}</p>
+            </article>
+            <article class="overview-card spent">
+                <p class="metric-label">Spent so far</p>
+                <p class="metric-value">₹{{ '%.2f'|format(totals.spent) }}</p>
+                <p class="metric-caption">Tracked against your set budgets</p>
+            </article>
+            <article class="overview-card remaining">
+                <p class="metric-label">Budget remaining</p>
+                <p class="metric-value">₹{{ '%.2f'|format(totals.limit - totals.spent) }}</p>
+                <p class="metric-caption">Available across all budget categories</p>
+            </article>
+        </section>
+
+        <div class="content-grid">
+            <section class="panel" aria-labelledby="budget-list-title">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="budget-list-title">Budget progress</h2>
+                        <p>Compare your spending with each category limit.</p>
+                    </div>
+                    <span class="budget-count" aria-label="{{ budgets|length }} budgets">{{ budgets|length }}</span>
+                </div>
+
+                {% if budgets %}
+                <div class="budget-list">
+                    {% for b in budgets %}
+                    {% set spent = expense_dict.get(b.category|trim|lower, 0) %}
+                    {% set pct = (spent / b.amount * 100) if b.amount else 0 %}
+                    {% set bar_width = [[pct, 100]|min, 0]|max %}
+                    <article class="budget-item">
+                        <div class="budget-item-top">
+                            <div>
+                                <h3 class="category-name">{{ b.category }}</h3>
+                                <p class="category-subtitle">Monthly spending limit</p>
+                            </div>
+                            {% if spent > b.amount %}
+                                <span class="status status-over">Over budget</span>
+                            {% elif pct >= 80 %}
+                                <span class="status status-warn">Near limit</span>
+                            {% else %}
+                                <span class="status status-ok">On track</span>
+                            {% endif %}
+                        </div>
+                        <div class="budget-progress" role="progressbar"
+                             aria-label="{{ b.category }} budget used"
+                             aria-valuemin="0" aria-valuemax="100"
+                             aria-valuenow="{{ [pct, 100]|min }}">
+                            <div class="budget-progress-bar {{ 'over' if pct > 100 else 'warn' if pct >= 80 else '' }}"
+                                 style="width: {{ bar_width }}%;"></div>
+                        </div>
+                        <div class="budget-numbers">
+                            <span><strong>₹{{ '%.2f'|format(spent) }}</strong> spent</span>
+                            <span>{{ '%.0f'|format(pct) }}% used</span>
+                        </div>
+                        <div class="budget-item-bottom">
+                            <span>Limit ₹{{ '%.2f'|format(b.amount) }}</span>
+                            {% if spent > b.amount %}
+                                <span class="over-amount">₹{{ '%.2f'|format(spent - b.amount) }} over</span>
+                            {% else %}
+                                <span>₹{{ '%.2f'|format(b.amount - spent) }} left</span>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <span class="empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4 7.5h16M6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                            <path d="M8 12h8m-8 3.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <h3>No budgets yet</h3>
+                    <p>Create your first monthly budget to start tracking category spending.</p>
+                </div>
+                {% endif %}
+            </section>
+
+            <aside class="panel setup-panel" aria-labelledby="setup-title">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="setup-title">Set a budget</h2>
+                        <p>Give a spending category a monthly limit.</p>
+                    </div>
+                </div>
+                <form method="POST" class="setup-form">
+                    <div>
+                        <label for="category">Category</label>
+                        <input type="text" id="category" name="category" required maxlength="100"
+                               placeholder="e.g. Groceries, Rent">
+                    </div>
+                    <div>
+                        <label for="amount">Monthly limit</label>
+                        <input type="number" id="amount" name="amount" step="0.01" min="0.01" required
+                               placeholder="5000.00" inputmode="decimal">
+                    </div>
+                    <button type="submit">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Set budget
+                    </button>
+                    <p class="form-note">Your progress updates automatically as you record expenses in the same category.</p>
+                </form>
+            </aside>
+        </div>
+        <p class="page-footer">Small steps, smarter spending.</p>
+    </main>
+</body>
+</html>

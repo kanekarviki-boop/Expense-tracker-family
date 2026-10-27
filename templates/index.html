@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Home | Family Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="app-nav" aria-label="Main navigation">
+        <a class="app-brand" href="/">
+            <span class="app-brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 18.5V12m5 6.5V5.5m5 13V9m5 9.5V3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </span>
+            Family Expense Tracker
+        </a>
+        <div class="app-links">
+            <a href="/" aria-current="page">Home</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('transactions') }}">Transactions</a>
+            <a href="{{ url_for('budgets') }}">Budgets</a>
+            <a href="{{ url_for('manage_family') }}">Family</a>
+            <a class="logout-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <header class="page-intro">
+            <div>
+                <p class="eyebrow">Your household finances</p>
+                <h1>Good money habits start here.</h1>
+                <p>Track family spending, see where your money goes, and make the next decision with confidence.</p>
+            </div>
+            <a class="button" href="{{ url_for('transactions') }}">＋ Add transaction</a>
+        </header>
+
+        <section class="summary-cards" aria-label="Financial summary">
+            <article class="card">
+                <h5>Total income</h5>
+                <p style="color: #18866b;">₹{{ '%.2f'|format(income) }}</p>
+            </article>
+            <article class="card">
+                <h5>Total expenses</h5>
+                <p style="color: #cc4b55;">₹{{ '%.2f'|format(expenses) }}</p>
+            </article>
+            <article class="card">
+                <h5>Available balance</h5>
+                <p style="color: {{ '#18866b' if balance >= 0 else '#cc4b55' }};">₹{{ '%.2f'|format(balance) }}</p>
+            </article>
+        </section>
+
+        <section class="panel" aria-labelledby="recent-transactions">
+            <div class="panel-heading">
+                <div>
+                    <h2 id="recent-transactions">Recent transactions</h2>
+                    <p>A quick look at your latest household activity.</p>
+                </div>
+                {% if transactions|length > 10 %}
+                <a href="{{ url_for('transactions') }}">View all →</a>
+                {% endif %}
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transactions[:10] %}
+                        <tr>
+                            <td>{{ t.transaction_date }}</td>
+                            <td>{{ t.transaction_type|capitalize }}</td>
+                            <td>{{ t.category }}</td>
+                            <td>₹{{ '%.2f'|format(t.amount) }}</td>
+                            <td>{{ t.description or '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td class="empty-state" colspan="5">No transactions yet. <a href="{{ url_for('transactions') }}">Add your first one</a>.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <p class="app-footer">Made for better conversations about money.</p>
+    </main>
+</body>
+</html>

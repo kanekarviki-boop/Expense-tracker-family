@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Family | Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .family-layout {
+            display: grid;
+            grid-template-columns: minmax(260px, .75fr) minmax(0, 1.4fr);
+            align-items: start;
+            gap: 18px;
+        }
+
+        .family-form {
+            padding: 21px;
+        }
+
+        .family-form > div {
+            margin-bottom: 15px;
+        }
+
+        .family-form button {
+            width: 100%;
+        }
+
+        .member-avatar {
+            display: inline-grid;
+            width: 36px;
+            height: 36px;
+            margin-right: 10px;
+            place-items: center;
+            border-radius: 12px;
+            background: #eff1ff;
+            color: var(--accent);
+            font-size: .83rem;
+            font-weight: 800;
+            vertical-align: middle;
+        }
+
+        .member-relation {
+            display: inline-flex;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: #f2f4f8;
+            color: #647087;
+            font-size: .75rem;
+            font-weight: 700;
+        }
+
+        @media (max-width: 800px) {
+            .family-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="app-nav" aria-label="Main navigation">
+        <a class="app-brand" href="/">
+            <span class="app-brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 18.5V12m5 6.5V5.5m5 13V9m5 9.5V3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </span>
+            Expense Tracker
+        </a>
+        <div class="app-links">
+            <a href="/">Home</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('transactions') }}">Transactions</a>
+            <a href="{{ url_for('budgets') }}">Budgets</a>
+            <a href="{{ url_for('manage_family') }}" aria-current="page">Family</a>
+            <a class="logout-link" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <header class="page-intro">
+            <div>
+                <p class="eyebrow">Together, in sync</p>
+                <h1>Your family</h1>
+                <p>Keep the people in your household organized alongside your shared money goals.</p>
+            </div>
+        </header>
+
+        <div class="family-layout">
+            <section class="panel" aria-labelledby="add-member-title">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="add-member-title">Add a family member</h2>
+                        <p>Build your household record.</p>
+                    </div>
+                </div>
+                <form method="POST" action="{{ url_for('manage_family') }}" class="family-form">
+                    <div>
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" required placeholder="e.g. Alex">
+                    </div>
+                    <div>
+                        <label for="relation">Relationship</label>
+                        <input type="text" id="relation" name="relation" required placeholder="e.g. Parent, Partner">
+                    </div>
+                    <button type="submit">＋ Add family member</button>
+                </form>
+            </section>
+
+            <section class="panel" aria-labelledby="family-records-title">
+                <div class="panel-heading">
+                    <div>
+                        <h2 id="family-records-title">Family records</h2>
+                        <p>{{ family|length }} {{ 'member' if family|length == 1 else 'members' }} in your household.</p>
+                    </div>
+                </div>
+                <div class="table-wrap" style="border: 0; border-radius: 0 0 16px 16px;">
+                    <table>
+                        <thead>
+                            <tr><th>Name</th><th>Relationship</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for member in family %}
+                            <tr>
+                                <td><span class="member-avatar" aria-hidden="true">{{ member.name[:1]|upper }}</span>{{ member.name }}</td>
+                                <td><span class="member-relation">{{ member.relation }}</span></td>
+                                <td>
+                                    <form action="{{ url_for('delete_family_member', id=member.id) }}" method="POST"
+                                          onsubmit="return confirm('Remove this family member?');">
+                                        <button type="submit" class="button-danger">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td class="empty-state" colspan="3">No family members added yet. Add someone to get started.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+        <p class="app-footer">Better money management is a team effort.</p>
+    </main>
+</body>
+</html>
